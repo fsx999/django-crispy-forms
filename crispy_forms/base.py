@@ -30,4 +30,7 @@ class KeepContext(object):
 
     def __exit__(self, type, value, traceback):
         for key in list(self.keys):
-            del self.context[key]
+            try:
+                del self.context[key]
+            except KeyError:
+                pass

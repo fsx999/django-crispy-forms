@@ -282,8 +282,10 @@ class Fieldset(LayoutObject):
         legend = ''
         if self.legend:
             legend = u'%s' % Template(text_type(self.legend)).render(context)
-
-        template = self.template % template_pack
+        try:
+            template = self.template % template_pack
+        except TypeError:
+            template = self.template
         return render_to_string(
             template,
             {'fieldset': self, 'legend': legend, 'fields': fields, 'form_style': form_style}
@@ -430,11 +432,15 @@ class Field(LayoutObject):
     def render(self, form, form_style, context, template_pack=TEMPLATE_PACK, extra_context=None, **kwargs):
         if extra_context is None:
             extra_context = {}
+        print extra_context
         if hasattr(self, 'wrapper_class'):
             extra_context['wrapper_class'] = self.wrapper_class
 
         html = ''
-        template = self.template % template_pack
+        try:
+            template = self.template % template_pack
+        except TypeError:
+            template = self.template
         for field in self.fields:
             html += render_field(
                 field, form, form_style, context,
