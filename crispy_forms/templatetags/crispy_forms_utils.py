@@ -20,11 +20,13 @@ def selectively_remove_spaces_between_tags(value, template_pack, form_class):
         'bootstrap' in template_pack
         and 'form-inline' in form_class
     ):
-        # More than 3 strict whitespaces, see issue #250
-        html = re.sub(r'>\s{3,}<', '> <', force_text(value))
+        # Bootstrap inline forms rely on spaces separating inputs, really
+        html = re.sub(r'>\s+<', '> <', force_text(value))
+        html = re.sub(r'</button><', '</button> <', force_text(html))
         return re.sub(r'/><', r'/> <', force_text(html))
     else:
-        html = re.sub(r'>\s{3,}<', '> <', force_text(value))
+        html = re.sub(r'>\s+<', '><', force_text(value))
+        html = re.sub(r'</button><', '</button> <', force_text(html))
         return re.sub(r'/><', r'/> <', force_text(html))
     return value
 selectively_remove_spaces_between_tags = allow_lazy(

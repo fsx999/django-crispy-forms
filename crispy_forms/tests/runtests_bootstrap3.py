@@ -19,13 +19,12 @@ def runtests():
         'crispy_forms.TestBasicFunctionalityTags',
         'crispy_forms.TestFormHelper',
         'crispy_forms.TestBootstrapFormHelper',
-        'crispy_forms.TestBootstrap3FormHelper',
         'crispy_forms.TestFormLayout',
         'crispy_forms.TestBootstrapFormLayout',
         'crispy_forms.TestBootstrap3FormLayout',
         'crispy_forms.TestLayoutObjects',
         'crispy_forms.TestBootstrapLayoutObjects',
-        'crispy_forms.TestDynamicLayouts',
+        'crispy_forms.TestDynamicLayouts'
     ], verbosity=1, interactive=True)
 
 

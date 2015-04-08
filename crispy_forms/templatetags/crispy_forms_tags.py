@@ -15,11 +15,7 @@ register = template.Library()
 from crispy_forms.templatetags.crispy_forms_filters import *
 
 TEMPLATE_PACK = getattr(settings, 'CRISPY_TEMPLATE_PACK', 'bootstrap')
-ALLOWED_TEMPLATE_PACKS = getattr(
-    settings,
-    'CRISPY_ALLOWED_TEMPLATE_PACKS',
-    ('bootstrap', 'uni_form', 'bootstrap3')
-)
+ALLOWED_TEMPLATE_PACKS = getattr(settings, 'CRISPY_ALLOWED_TEMPLATE_PACKS', ('bootstrap', 'uni_form'))
 
 
 class ForLoopSimulator(object):
@@ -90,7 +86,7 @@ class BasicNode(template.Node):
 
     def get_render(self, context):
         """
-        Returns a `Context` object with all the necessary stuff for rendering the form
+        Returns a `Context` object with all the necesarry stuff for rendering the form
 
         :param context: `django.template.Context` variable holding the context for the node
 
@@ -115,13 +111,6 @@ class BasicNode(template.Node):
             # If the user names the helper within the form `helper` (standard), we use it
             # This allows us to have simplified tag syntax: {% crispy form %}
             helper = FormHelper() if not hasattr(actual_form, 'helper') else actual_form.helper
-
-        # use template_pack from helper, if defined
-        try:
-            if helper.template_pack:
-                self.template_pack = helper.template_pack
-        except AttributeError:
-            pass
 
         self.actual_helper = helper
 
@@ -168,7 +157,7 @@ class BasicNode(template.Node):
 
         # We take form/formset parameters from attrs if they are set, otherwise we use defaults
         response_dict = {
-            'template_pack': self.template_pack,
+            'template_pack': settings.CRISPY_TEMPLATE_PACK,
             '%s_action' % form_type: attrs['attrs'].get("action", ''),
             '%s_method' % form_type: attrs.get("form_method", 'post'),
             '%s_tag' % form_type: attrs.get("form_tag", True),
@@ -254,36 +243,32 @@ def do_uni_form(parser, token):
     token = token.split_contents()
     form = token.pop(1)
 
-    helper = None
-    template_pack = "'%s'" % TEMPLATE_PACK
-
-    # {% crispy form helper %}
     try:
         helper = token.pop(1)
     except IndexError:
-        pass
-
-    # {% crispy form helper 'bootstrap' %}
-    try:
-        template_pack = token.pop(1)
-    except IndexError:
-        pass
-
-    # {% crispy form 'bootstrap' %}
-    if (
-        helper is not None and
-        isinstance(helper, basestring) and
-        ("'" in helper or '"' in helper)
-    ):
-        template_pack = helper
         helper = None
 
-    if template_pack is not None:
+    try:
+        # {% crispy form helper 'bootstrap' %}
+        template_pack = token.pop(1)
+        if not (template_pack[0] == template_pack[-1] and template_pack[0] in ('"', "'")):
+            raise template.TemplateSyntaxError("crispy tag's template_pack argument should be in quotes")
+
         template_pack = template_pack[1:-1]
         if template_pack not in ALLOWED_TEMPLATE_PACKS:
-            raise template.TemplateSyntaxError(
-                "crispy tag's template_pack argument should be in %s" %
-                str(ALLOWED_TEMPLATE_PACKS)
-            )
+            raise template.TemplateSyntaxError("crispy tag's template_pack argument should be \
+                in " + str(ALLOWED_TEMPLATE_PACKS))
+    except IndexError:
+        # {% crispy form 'bootstrap' %}
+        # ('"'bootstrap'"', '"'uni_form'"','"'"bootstrap'"'", '"'"uni_form"'")
+        if (
+            helper in ['"%s"' % x for x in ALLOWED_TEMPLATE_PACKS] + \
+            ["'%s'" % x for x in ALLOWED_TEMPLATE_PACKS]
+        ):
+            template_pack = helper[1:-1]
+            helper = None
+        # {% crispy form helper %} OR {% crispy form %}
+        else:
+            template_pack = TEMPLATE_PACK
 
     return CrispyFormNode(form, helper, template_pack=template_pack)

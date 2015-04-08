@@ -21,7 +21,6 @@ from crispy_forms.utils import render_crispy_form
 
 
 class TestLayoutObjects(CrispyTestCase):
-
     def test_multiwidget_field(self):
         template = loader.get_template_from_string(u"""
             {% load crispy_forms_tags %}
@@ -100,11 +99,9 @@ class TestLayoutObjects(CrispyTestCase):
         html = render_crispy_form(test_form)
 
         if self.current_template_pack == 'uni_form':
-            self.assertEqual(html.count('\n'), 23)
-        elif self.current_template_pack == 'bootstrap':
-            self.assertEqual(html.count('\n'), 25)
+            self.assertEqual(html.count('\n'), 22)
         else:
-            self.assertEqual(html.count('\n'), 27)
+            self.assertEqual(html.count('\n'), 24)
 
     def test_i18n(self):
         activate('es')
@@ -118,8 +115,7 @@ class TestLayoutObjects(CrispyTestCase):
         deactivate()
 
 
-class TestBootstrapLayoutObjects(TestLayoutObjects):
-
+class TestBootstrapLayoutObjects(CrispyTestCase):
     def test_custom_django_widget(self):
         class CustomRadioSelect(forms.RadioSelect):
             pass
@@ -210,43 +206,6 @@ class TestBootstrapLayoutObjects(TestLayoutObjects):
         self.assertEqual(html.count('name="first_name"'), 1)
         self.assertEqual(html.count('name="password1"'), 1)
         self.assertEqual(html.count('name="password2"'), 1)
-
-    def test_accordion_active_false_not_rendered(self):
-        test_form = TestForm()
-        test_form.helper = FormHelper()
-        test_form.helper.layout = Layout(
-            Accordion(
-                AccordionGroup(
-                    'one',
-                    'first_name',
-                ),
-                # there is no ``active`` kwarg here.
-            )
-        )
-
-        # The first time, there should be one of them there.
-        html = render_crispy_form(test_form)
-
-        if self.current_template_pack == 'bootstrap':
-            accordion_class = "accordion-body"
-        else:
-            accordion_class = "panel-collapse"
-
-        self.assertEqual(html.count('<div id="one" class="%s collapse in"' % accordion_class), 1)
-
-        test_form.helper.layout = Layout(
-            Accordion(
-                AccordionGroup(
-                    'one',
-                    'first_name',
-                    active=False,  # now ``active`` manually set as False
-                ),
-            )
-        )
-
-        # This time, it shouldn't be there at all.
-        html = render_crispy_form(test_form)
-        self.assertEqual(html.count('<div id="one" class="%s collapse in"' % accordion_class), 0)
 
     def test_alert(self):
         test_form = TestForm()
@@ -380,6 +339,9 @@ class TestBootstrapLayoutObjects(TestLayoutObjects):
             self.assertEqual(html.count('class="input-append"'), 1)
         elif self.current_template_pack == 'bootstrap3':
             self.assertEqual(html.count('class="input-group-btn'), 1)
+
+        # Make sure white spaces between buttons are there in bootstrap
+        self.assertEqual(len(re.findall(r'</button> <', html)), 3)
 
     def test_hidden_fields(self):
         form = TestForm()

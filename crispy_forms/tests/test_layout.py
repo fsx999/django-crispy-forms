@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import re
-
 import django
 from django import forms
 from django.conf import settings
@@ -198,6 +196,112 @@ class TestFormLayout(CrispyTestCase):
             self.assertTrue('class="row rows"' in html)
         self.assertTrue('Hello!' in html)
         self.assertTrue('testLink' in html)
+
+    def test_second_layout_multifield_column_buttonholder_submit_div(self):
+        form_helper = FormHelper()
+        form_helper.add_layout(
+            Layout(
+                MultiField("Some company data",
+                    'is_company',
+                    'email',
+                    css_id = "multifield_info",
+                    title = "multifield_title",
+                    multifield_test = "123"
+                ),
+                Column(
+                    'first_name',
+                    'last_name',
+                    css_id = "column_name",
+                    css_class = "columns",
+                ),
+                ButtonHolder(
+                    Submit('Save the world', '{{ value_var }}', css_class='button white', data_id='test', data_name='test'),
+                    Submit('store', 'Store results')
+                ),
+                Div(
+                    'password1',
+                    'password2',
+                    css_id="custom-div",
+                    css_class="customdivs",
+                    test_markup="123"
+                )
+            )
+        )
+
+        template = loader.get_template_from_string(u"""
+            {% load crispy_forms_tags %}
+            {% crispy form form_helper %}
+        """)
+        c = Context({'form': TestForm(), 'form_helper': form_helper, 'value_var': "Save"})
+        html = template.render(c)
+
+        self.assertTrue('multiField' in html)
+        self.assertTrue('formColumn' in html)
+        self.assertTrue('id="multifield_info"' in html)
+        self.assertTrue('title="multifield_title"' in html)
+        self.assertTrue('multifield-test="123"' in html)
+        self.assertTrue('id="column_name"' in html)
+        self.assertTrue('class="formColumn columns"' in html)
+        self.assertTrue('class="buttonHolder">' in html)
+        self.assertTrue('input type="submit"' in html)
+        self.assertTrue('button white' in html)
+        self.assertTrue('data-id="test"' in html)
+        self.assertTrue('data-name="test"' in html)
+        self.assertTrue('name="save-the-world"' in html)
+        self.assertTrue('value="Save"' in html)
+        self.assertTrue('name="store"' in html)
+        self.assertTrue('value="Store results"' in html)
+        self.assertTrue('id="custom-div"' in html)
+        self.assertTrue('class="customdivs"' in html)
+        self.assertTrue('test-markup="123"' in html)
+
+    def test_layout_composition(self):
+        form_helper = FormHelper()
+        form_helper.add_layout(
+            Layout(
+                Layout(
+                    MultiField("Some company data",
+                        'is_company',
+                        'email',
+                        css_id = "multifield_info",
+                    ),
+                ),
+                Column(
+                    'first_name',
+                    # 'last_name', Missing a field on purpose
+                    css_id = "column_name",
+                    css_class = "columns",
+                ),
+                ButtonHolder(
+                    Submit('Save', 'Save', css_class='button white'),
+                ),
+                Div(
+                    'password1',
+                    'password2',
+                    css_id="custom-div",
+                    css_class="customdivs",
+                )
+            )
+        )
+
+        template = loader.get_template_from_string(u"""
+            {% load crispy_forms_tags %}
+            {% crispy form form_helper %}
+        """)
+        c = Context({'form': TestForm(), 'form_helper': form_helper})
+        html = template.render(c)
+
+        self.assertTrue('multiField' in html)
+        self.assertTrue('formColumn' in html)
+        self.assertTrue('id="multifield_info"' in html)
+        self.assertTrue('id="column_name"' in html)
+        self.assertTrue('class="formColumn columns"' in html)
+        self.assertTrue('class="buttonHolder">' in html)
+        self.assertTrue('input type="submit"' in html)
+        self.assertTrue('name="Save"' in html)
+        self.assertTrue('id="custom-div"' in html)
+        self.assertTrue('class="customdivs"' in html)
+        self.assertFalse('last_name' in html)
 
     def test_change_layout_dynamically_delete_field(self):
         template = loader.get_template_from_string(u"""
@@ -403,129 +507,9 @@ class TestFormLayout(CrispyTestCase):
         self.assertTrue('email' in html)
         self.assertFalse('password' in html)
 
-    def test_specialspaceless_not_screwing_intended_spaces(self):
-        # see issue #250
-        test_form = TestForm()
-        test_form.fields['email'].widget = forms.Textarea()
-        test_form.helper = FormHelper()
-        test_form.helper.layout = Layout(
-            'email',
-            HTML("<span>first span</span> <span>second span</span>")
-        )
-        html = render_crispy_form(test_form)
-        self.assertTrue('<span>first span</span> <span>second span</span>' in html)
 
-
-class TestUniformFormLayout(TestFormLayout):
-
-    def test_layout_composition(self):
-        form_helper = FormHelper()
-        form_helper.add_layout(
-            Layout(
-                Layout(
-                    MultiField("Some company data",
-                        'is_company',
-                        'email',
-                        css_id = "multifield_info",
-                    ),
-                ),
-                Column(
-                    'first_name',
-                    # 'last_name', Missing a field on purpose
-                    css_id = "column_name",
-                    css_class = "columns",
-                ),
-                ButtonHolder(
-                    Submit('Save', 'Save', css_class='button white'),
-                ),
-                Div(
-                    'password1',
-                    'password2',
-                    css_id="custom-div",
-                    css_class="customdivs",
-                )
-            )
-        )
-
-        template = loader.get_template_from_string(u"""
-                {% load crispy_forms_tags %}
-                {% crispy form form_helper %}
-            """)
-        c = Context({'form': TestForm(), 'form_helper': form_helper})
-        html = template.render(c)
-
-        self.assertTrue('multiField' in html)
-        self.assertTrue('formColumn' in html)
-        self.assertTrue('id="multifield_info"' in html)
-        self.assertTrue('id="column_name"' in html)
-        self.assertTrue('class="formColumn columns"' in html)
-        self.assertTrue('class="buttonHolder">' in html)
-        self.assertTrue('input type="submit"' in html)
-        self.assertTrue('name="Save"' in html)
-        self.assertTrue('id="custom-div"' in html)
-        self.assertTrue('class="customdivs"' in html)
-        self.assertFalse('last_name' in html)
-
-    def test_second_layout_multifield_column_buttonholder_submit_div(self):
-        form_helper = FormHelper()
-        form_helper.add_layout(
-            Layout(
-                MultiField("Some company data",
-                    'is_company',
-                    'email',
-                    css_id = "multifield_info",
-                    title = "multifield_title",
-                    multifield_test = "123"
-                ),
-                Column(
-                    'first_name',
-                    'last_name',
-                    css_id = "column_name",
-                    css_class = "columns",
-                ),
-                ButtonHolder(
-                    Submit('Save the world', '{{ value_var }}', css_class='button white', data_id='test', data_name='test'),
-                    Submit('store', 'Store results')
-                ),
-                Div(
-                    'password1',
-                    'password2',
-                    css_id="custom-div",
-                    css_class="customdivs",
-                    test_markup="123"
-                )
-            )
-        )
-
-        template = loader.get_template_from_string(u"""
-                {% load crispy_forms_tags %}
-                {% crispy form form_helper %}
-            """)
-        c = Context({'form': TestForm(), 'form_helper': form_helper, 'value_var': "Save"})
-        html = template.render(c)
-
-        self.assertTrue('multiField' in html)
-        self.assertTrue('formColumn' in html)
-        self.assertTrue('id="multifield_info"' in html)
-        self.assertTrue('title="multifield_title"' in html)
-        self.assertTrue('multifield-test="123"' in html)
-        self.assertTrue('id="column_name"' in html)
-        self.assertTrue('class="formColumn columns"' in html)
-        self.assertTrue('class="buttonHolder">' in html)
-        self.assertTrue('input type="submit"' in html)
-        self.assertTrue('button white' in html)
-        self.assertTrue('data-id="test"' in html)
-        self.assertTrue('data-name="test"' in html)
-        self.assertTrue('name="save-the-world"' in html)
-        self.assertTrue('value="Save"' in html)
-        self.assertTrue('name="store"' in html)
-        self.assertTrue('value="Store results"' in html)
-        self.assertTrue('id="custom-div"' in html)
-        self.assertTrue('class="customdivs"' in html)
-        self.assertTrue('test-markup="123"' in html)
-
-
-class TestBootstrapFormLayout(TestFormLayout):
+class TestBootstrapFormLayout(CrispyTestCase):
+    urls = 'crispy_forms.tests.urls'
 
     def test_keepcontext_context_manager(self):
         # Test case for issue #180
@@ -550,7 +534,8 @@ class TestBootstrapFormLayout(TestFormLayout):
             self.assertEqual(response.content.count(b'checkbox-inline'), 3)
 
 
-class TestBootstrap3FormLayout(TestFormLayout):
+class TestBootstrap3FormLayout(CrispyTestCase):
+    urls = 'crispy_forms.tests.urls'
 
     def test_form_inline(self):
         form = TestForm()

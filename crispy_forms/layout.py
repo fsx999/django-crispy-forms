@@ -98,9 +98,11 @@ class Layout(LayoutObject):
     Layout objects within. Though `ButtonHolder` should only hold `HTML` and BaseInput
     inherited classes: `Button`, `Hidden`, `Reset` and `Submit`.
 
+    You need to add your `Layout` to the `FormHelper` using its method `add_layout`.
+
     Example::
 
-        helper.layout = Layout(
+        layout = Layout(
             Fieldset('Company data',
                 'is_company'
             ),
@@ -116,11 +118,13 @@ class Layout(LayoutObject):
                 Submit('Save', 'Save', css_class='button white'),
             ),
         )
+
+        helper.add_layout(layout)
     """
     def __init__(self, *fields):
         self.fields = list(fields)
 
-    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK, **kwargs):
+    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK):
         html = ""
         for field in self.fields:
             html += render_field(
@@ -128,8 +132,7 @@ class Layout(LayoutObject):
                 form,
                 form_style,
                 context,
-                template_pack=template_pack,
-                **kwargs
+                template_pack=template_pack
             )
         return html
 
@@ -148,7 +151,7 @@ class ButtonHolder(LayoutObject):
             Submit('Save', 'Save')
         )
     """
-    template = "%s/layout/buttonholder.html"
+    template = "uni_form/layout/buttonholder.html"
 
     def __init__(self, *fields, **kwargs):
         self.fields = list(fields)
@@ -156,26 +159,20 @@ class ButtonHolder(LayoutObject):
         self.css_id = kwargs.get('css_id', None)
         self.template = kwargs.get('template', self.template)
 
-    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK, **kwargs):
+    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK):
         html = u''
         for field in self.fields:
-            html += render_field(
-                field, form, form_style, context, template_pack=template_pack, **kwargs
-            )
+            html += render_field(field, form, form_style,
+                                 context, template_pack=template_pack)
 
-        template = self.template % template_pack
-        return render_to_string(
-            template,
-            {'buttonholder': self, 'fields_output': html},
-            context
-        )
+        return render_to_string(self.template, Context({'buttonholder': self, 'fields_output': html}))
 
 
 class BaseInput(object):
     """
     A base class to reduce the amount of code in the Input classes.
     """
-    template = "%s/layout/baseinput.html"
+    template = "%s/layout/baseinput.html" % TEMPLATE_PACK
 
     def __init__(self, name, value, **kwargs):
         self.name = name
@@ -189,14 +186,13 @@ class BaseInput(object):
         self.template = kwargs.pop('template', self.template)
         self.flat_attrs = flatatt(kwargs)
 
-    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK, **kwargs):
+    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK):
         """
         Renders an `<input />` if container is used as a Layout object.
         Input button value can be a variable in context.
         """
         self.value = Template(text_type(self.value)).render(context)
-        template = self.template % template_pack
-        return render_to_string(template, {'input': self}, context)
+        return render_to_string(self.template, Context({'input': self}))
 
 
 class Submit(BaseInput):
@@ -262,40 +258,33 @@ class Fieldset(LayoutObject):
             'form_field_2'
         )
     """
-    template = "%s/layout/fieldset.html"
+    template = "uni_form/layout/fieldset.html"
 
     def __init__(self, legend, *fields, **kwargs):
         self.fields = list(fields)
         self.legend = legend
         self.css_class = kwargs.pop('css_class', '')
         self.css_id = kwargs.pop('css_id', None)
+        # Overrides class variable with an instance level variable
         self.template = kwargs.pop('template', self.template)
         self.flat_attrs = flatatt(kwargs)
 
-    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK, **kwargs):
+    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK):
         fields = ''
         for field in self.fields:
-            fields += render_field(
-                field, form, form_style, context, template_pack=template_pack, **kwargs
-            )
+            fields += render_field(field, form, form_style, context,
+                                   template_pack=template_pack)
 
         legend = ''
         if self.legend:
             legend = u'%s' % Template(text_type(self.legend)).render(context)
-        try:
-            template = self.template % template_pack
-        except TypeError:
-            template = self.template
-        return render_to_string(
-            template,
-            {'fieldset': self, 'legend': legend, 'fields': fields, 'form_style': form_style}
-        )
+        return render_to_string(self.template, Context({'fieldset': self, 'legend': legend, 'fields': fields, 'form_style': form_style}))
 
 
 class MultiField(LayoutObject):
     """ MultiField container. Renders to a MultiField <div> """
-    template = "%s/layout/multifield.html"
-    field_template = "%s/multifield.html"
+    template = "uni_form/layout/multifield.html"
+    field_template = "uni_form/multifield.html"
 
     def __init__(self, label, *fields, **kwargs):
         self.fields = list(fields)
@@ -307,7 +296,7 @@ class MultiField(LayoutObject):
         self.field_template = kwargs.pop('field_template', self.field_template)
         self.flat_attrs = flatatt(kwargs)
 
-    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK, **kwargs):
+    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK):
         # If a field within MultiField contains errors
         if context['form_show_errors']:
             for field in map(lambda pointer: pointer[1], self.get_field_names()):
@@ -315,20 +304,15 @@ class MultiField(LayoutObject):
                     self.css_class += " error"
 
         fields_output = u''
-        field_template = self.field_template % template_pack
         for field in self.fields:
             fields_output += render_field(
                 field, form, form_style, context,
-                field_template, self.label_class, layout_object=self,
-                template_pack=template_pack, **kwargs
+                self.field_template, self.label_class, layout_object=self,
+                template_pack=template_pack
             )
 
-        extra_context = {
-            'multifield': self,
-            'fields_output': fields_output
-        }
-        template = self.template % template_pack
-        return render_to_string(template, extra_context, context)
+        context.update({'multifield': self, 'fields_output': fields_output})
+        return render_to_string(self.template, context)
 
 
 class Div(LayoutObject):
@@ -339,7 +323,7 @@ class Div(LayoutObject):
 
         Div('form_field_1', 'form_field_2', css_id='div-example', css_class='divs')
     """
-    template = "%s/layout/div.html"
+    template = "uni_form/layout/div.html"
 
     def __init__(self, *fields, **kwargs):
         self.fields = list(fields)
@@ -353,15 +337,12 @@ class Div(LayoutObject):
         self.template = kwargs.pop('template', self.template)
         self.flat_attrs = flatatt(kwargs)
 
-    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK, **kwargs):
+    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK):
         fields = ''
         for field in self.fields:
-            fields += render_field(
-                field, form, form_style, context, template_pack=template_pack, **kwargs
-            )
+            fields += render_field(field, form, form_style, context, template_pack=template_pack)
 
-        template = self.template % template_pack
-        return render_to_string(template, {'div': self, 'fields': fields})
+        return render_to_string(self.template, Context({'div': self, 'fields': fields}))
 
 
 class Row(Div):
@@ -396,7 +377,7 @@ class HTML(object):
     def __init__(self, html):
         self.html = html
 
-    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK, **kwargs):
+    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK):
         return Template(text_type(self.html)).render(context)
 
 
@@ -409,7 +390,7 @@ class Field(LayoutObject):
 
         Field('field_name', style="color: #333;", css_class="whatever", id="field_name")
     """
-    template = "%s/field.html"
+    template = "%s/field.html" % TEMPLATE_PACK
 
     def __init__(self, *args, **kwargs):
         self.fields = list(args)
@@ -429,24 +410,13 @@ class Field(LayoutObject):
         # We use kwargs as HTML attributes, turning data_id='test' into data-id='test'
         self.attrs.update(dict([(k.replace('_', '-'), conditional_escape(v)) for k, v in kwargs.items()]))
 
-    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK, extra_context=None, **kwargs):
-        if extra_context is None:
-            extra_context = {}
-        print extra_context
+    def render(self, form, form_style, context, template_pack=TEMPLATE_PACK):
         if hasattr(self, 'wrapper_class'):
-            extra_context['wrapper_class'] = self.wrapper_class
+            context['wrapper_class'] = self.wrapper_class
 
         html = ''
-        try:
-            template = self.template % template_pack
-        except TypeError:
-            template = self.template
         for field in self.fields:
-            html += render_field(
-                field, form, form_style, context,
-                template=template, attrs=self.attrs, template_pack=template_pack,
-                extra_context=extra_context, **kwargs
-            )
+            html += render_field(field, form, form_style, context, template=self.template, attrs=self.attrs, template_pack=template_pack)
         return html
 
 

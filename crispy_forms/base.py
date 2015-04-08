@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+
+
 def from_iterable(iterables):
     """
     Backport of `itertools.chain.from_iterable` compatible with Python 2.5
@@ -13,24 +16,27 @@ def from_iterable(iterables):
 
 class KeepContext(object):
     """
-    Context manager that receives a `django.template.Context` instance and a list of keys
+    Context manager that receives a `django.template.Context` instance, tracks its changes
+    and rolls them back when exiting the context manager, leaving the context unchanged.
 
-    Once the context manager is exited, it removes `keys` from the context, to avoid
-    side effects in later layout objects that may use the same context variables.
-
-    Layout objects should use `extra_context` to introduce context variables, never
-    touch context object themselves, that could introduce side effects.
+    Layout objects can introduce context variables, that may cause side effects in later
+    layout objects. This avoids that situation, without copying context every time.
     """
-    def __init__(self, context, keys):
+    def __init__(self, context):
         self.context = context
-        self.keys = keys
 
     def __enter__(self):
-        pass
+        self.old_set_keys = set(from_iterable(self.context.dicts))
 
     def __exit__(self, type, value, traceback):
-        for key in list(self.keys):
-            try:
-                del self.context[key]
-            except KeyError:
-                pass
+        current_set_keys = set(from_iterable(self.context.dicts))
+        diff_keys = current_set_keys - self.old_set_keys
+
+        # We remove added keys for rolling back changes
+        for key in diff_keys:
+            self._delete_key_from_context(key)
+
+    def _delete_key_from_context(self, key):
+        for d in self.context.dicts:
+            if key in d:
+                del d[key]
